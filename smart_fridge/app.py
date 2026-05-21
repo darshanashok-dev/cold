@@ -1,6 +1,9 @@
 import os
 import json
 import re
+import sqlite3
+import threading
+from datetime import datetime
 from flask import Flask, request, jsonify, render_template
 import google.generativeai as genai
 from PIL import Image
@@ -14,27 +17,17 @@ except ImportError:
 
 app = Flask(__name__)
 
-# --- CONFIGURATION ---
-api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-use_mock_mode = False
+# --- CONFIGURATION & CONSTANTS ---
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB size limit
+ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
 
-if not api_key or "YOUR_GEMINI" in api_key or "INSERT_API_KEY" in api_key or api_key == "":
-    print("\n" + "="*80)
-    print("WARNING: Running in MOCK DIAGNOSTICS Mode. Gemini API key is missing or placeholder.")
-    print("To use the real Gemini API, configure GEMINI_API_KEY in your /home/da/cold/smart_fridge/.env file.")
-    print("="*80 + "\n")
-    use_mock_mode = True
-else:
-    try:
-        genai.configure(api_key=api_key)
-        print("Gemini API configured successfully from environment/configuration.")
-    except Exception as e:
-        print(f"Error configuring Gemini API: {e}. Falling back to MOCK Mode.")
-        use_mock_mode = True
+# Path to database file
+DATABASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data.db')
 
-model = genai.GenerativeModel('gemini-1.5-flash')
+# Thread lock for thread-safe access to globals
+state_lock = threading.Lock()
 
-# Global state that the ESP32 will constantly poll
+# Global state baseline defaults
 current_setpoints = {
     "fruit": "None (Awaiting Image)",
     "target_low": 12.0,
@@ -45,6 +38,147 @@ current_setpoints = {
     "days_remaining": 0,
     "ai_reasoning": "Awaiting visual diagnostics trigger."
 }
+
+last_telemetry = {
+    "temperature": 0.0,
+    "humidity": 0.0,
+    "is_cooling": 0,
+    "timestamp": None
+}
+
+# --- DATABASE OPERATIONS ---
+def init_db():
+    """Initializes SQLite database tables."""
+    try:
+        with sqlite3.connect(DATABASE_PATH) as conn:
+            cursor = conn.cursor()
+            # Telemetry logs from ESP32
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS telemetry (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    temperature REAL,
+                    humidity REAL,
+                    is_cooling INTEGER
+                )
+            ''')
+            # Scan history log
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS scan_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    fruit TEXT,
+                    freshness TEXT,
+                    confidence REAL,
+                    decay_index REAL,
+                    days_remaining INTEGER,
+                    ai_reasoning TEXT,
+                    target_low REAL,
+                    target_high REAL
+                )
+            ''')
+            # System state (key-value pair for persistence)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS system_state (
+                    key TEXT PRIMARY KEY,
+                    value TEXT
+                )
+            ''')
+            conn.commit()
+        print("Database initialized successfully.")
+    except Exception as e:
+        print(f"Error initializing database: {e}")
+
+def load_persisted_state():
+    """Loads the previously saved setpoints from the database."""
+    global current_setpoints
+    try:
+        if not os.path.exists(DATABASE_PATH):
+            return
+        with sqlite3.connect(DATABASE_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM system_state WHERE key='current_setpoints'")
+            row = cursor.fetchone()
+            if row:
+                loaded = json.loads(row[0])
+                # Backfill keys to maintain compatibility with new fields
+                with state_lock:
+                    for k, v in current_setpoints.items():
+                        if k not in loaded:
+                            loaded[k] = v
+                    current_setpoints = loaded
+                print(f"Persisted setpoints loaded successfully: {current_setpoints}")
+    except Exception as e:
+        print(f"Warning: Failed to load persisted state: {e}")
+
+def save_persisted_state():
+    """Saves the current setpoints to the database."""
+    try:
+        with state_lock:
+            state_json = json.dumps(current_setpoints)
+        with sqlite3.connect(DATABASE_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT OR REPLACE INTO system_state (key, value) VALUES ('current_setpoints', ?)",
+                (state_json,)
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"Error saving persisted state: {e}")
+
+# Initialize Database and load previous state
+init_db()
+load_persisted_state()
+
+# --- MODEL & API INITIALIZATION ---
+api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+use_mock_mode = False
+model = None
+
+if not api_key or "YOUR_GEMINI" in api_key or "INSERT_API_KEY" in api_key or api_key == "":
+    print("\n" + "="*80)
+    print("WARNING: Running in MOCK DIAGNOSTICS Mode. Gemini API key is missing or placeholder.")
+    print("To use the real Gemini API, configure GEMINI_API_KEY in your smart_fridge/.env file.")
+    print("="*80 + "\n")
+    use_mock_mode = True
+else:
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        print("Gemini API configured successfully from environment.")
+    except Exception as e:
+        print(f"Error configuring Gemini API: {e}. Falling back to MOCK Mode.")
+        use_mock_mode = True
+
+# --- HELPER FUNCTIONS ---
+def is_ajax_request():
+    """Robust helper to check if a request expects a JSON/AJAX response."""
+    return (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+        request.is_json or
+        'application/json' in request.headers.get('Accept', '')
+    )
+
+def validate_image_upload(file):
+    """Checks file size and MIME type to secure the upload route."""
+    if not file:
+        return False, "No file provided"
+    
+    # Validate MIME type
+    if file.mimetype not in ALLOWED_MIME_TYPES:
+        return False, f"Unsupported file type: {file.mimetype}. Only JPEGs, PNGs, WEBP, and GIFs are supported."
+
+    # Validate size
+    try:
+        file.seek(0, os.SEEK_END)
+        size = file.tell()
+        file.seek(0)  # Reset pointer to top
+        if size > MAX_FILE_SIZE:
+            return False, f"File size too large: {size / (1024*1024):.1f}MB. Maximum allowed is 5MB."
+    except Exception as e:
+        return False, f"Error validating file size: {str(e)}"
+
+    return True, None
 
 def clean_and_parse_json(text):
     """
@@ -92,30 +226,45 @@ def extract_int(value, default=0):
 # --- ROUTES ---
 @app.route('/')
 def index():
-    # Serves the mobile testing interface
-    return render_template('index.html', state=current_setpoints)
+    with state_lock:
+        state_to_render = current_setpoints.copy()
+    return render_template('index.html', state=state_to_render)
 
 @app.route('/detect', methods=['POST'])
 def detect_fruit():
     global current_setpoints
+    
     if 'image' not in request.files:
-        error_msg = "No image provided"
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+        error_msg = "No image file part provided"
+        if is_ajax_request():
             return jsonify({"error": error_msg}), 400
-        return render_template('index.html', state=current_setpoints, error=error_msg)
+        with state_lock:
+            state_to_render = current_setpoints.copy()
+        return render_template('index.html', state=state_to_render, error=error_msg)
 
     file = request.files['image']
     if file.filename == '':
-        error_msg = "No selected file"
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+        error_msg = "No selected image file"
+        if is_ajax_request():
             return jsonify({"error": error_msg}), 400
-        return render_template('index.html', state=current_setpoints, error=error_msg)
+        with state_lock:
+            state_to_render = current_setpoints.copy()
+        return render_template('index.html', state=state_to_render, error=error_msg)
+
+    # Perform file validation checks
+    is_valid, validation_error = validate_image_upload(file)
+    if not is_valid:
+        if is_ajax_request():
+            return jsonify({"error": validation_error}), 400
+        with state_lock:
+            state_to_render = current_setpoints.copy()
+        return render_template('index.html', state=state_to_render, error=validation_error)
 
     try:
         img = Image.open(file.stream)
         prompt = """
         Analyze this image of produce inside a cold storage box.
-        Identify the main fruit (e.g., Apple, Banana, Tomato).
+        Identify the main fruit (e.g., Apple, Banana, Tomato, Orange).
         Determine its freshness.
         Estimate a classification confidence (percentage, e.g. 98.5).
         Estimate a decay index (percentage of surface damage/overripeness, e.g. 5.0).
@@ -198,35 +347,25 @@ def detect_fruit():
         ai_reasoning = data.get('ai_reasoning', 'No rationale provided.')
         fruit_lower = fruit.lower()
         
-        # Thermodynamics Logic Matrix
-        if "apple" in fruit_lower:
+        # Thermodynamics Logic Matrix using lookup dict (covers all 4 fruits)
+        SETPOINTS = {
+            "apple":  (10.0, 12.0),
+            "banana": (14.0, 16.0),
+            "tomato": (7.0, 10.0),
+            "orange": (8.0, 11.0),
+        }
+        
+        low, high = 12.0, 14.0  # default fallback
+        for key, (l, h) in SETPOINTS.items():
+            if key in fruit_lower:
+                low, high = l, h
+                break
+        
+        with state_lock:
             current_setpoints = {
                 "fruit": fruit,
-                "target_low": 10.0,
-                "target_high": 12.0,
-                "freshness": fresh,
-                "confidence": confidence,
-                "decay_index": decay_index,
-                "days_remaining": days_remaining,
-                "ai_reasoning": ai_reasoning
-            }
-        elif "banana" in fruit_lower:
-            current_setpoints = {
-                "fruit": fruit,
-                "target_low": 14.0,
-                "target_high": 16.0,
-                "freshness": fresh,
-                "confidence": confidence,
-                "decay_index": decay_index,
-                "days_remaining": days_remaining,
-                "ai_reasoning": ai_reasoning
-            }
-        else:
-            # Default fallback for unrecognized items
-            current_setpoints = {
-                "fruit": fruit,
-                "target_low": 12.0,
-                "target_high": 14.0,
+                "target_low": low,
+                "target_high": high,
                 "freshness": fresh,
                 "confidence": confidence,
                 "decay_index": decay_index,
@@ -236,30 +375,138 @@ def detect_fruit():
             
         print(f"Update Success: {current_setpoints}")
         
+        # Persist setpoints and log scan history
+        save_persisted_state()
+        try:
+            with sqlite3.connect(DATABASE_PATH) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO scan_history 
+                    (fruit, freshness, confidence, decay_index, days_remaining, ai_reasoning, target_low, target_high)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (fruit, fresh, confidence, decay_index, days_remaining, ai_reasoning, low, high)
+                )
+                conn.commit()
+        except Exception as e:
+            print(f"Error logging scan to history DB: {e}")
+        
         # If the request was made via AJAX (fetch), return JSON
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify(current_setpoints), 200
+        if is_ajax_request():
+            with state_lock:
+                state_to_return = current_setpoints.copy()
+            return jsonify(state_to_return), 200
             
         # Redirect back to the web UI after traditional form upload
-        return render_template('index.html', state=current_setpoints, success=True)
+        with state_lock:
+            state_to_render = current_setpoints.copy()
+        return render_template('index.html', state=state_to_render, success=True)
         
     except Exception as e:
         error_str = str(e)
         print(f"AI Error: {error_str}")
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        if is_ajax_request():
             return jsonify({"error": error_str}), 500
-        return render_template('index.html', state=current_setpoints, error=f"AI Error: {error_str}")
+        with state_lock:
+            state_to_render = current_setpoints.copy()
+        return render_template('index.html', state=state_to_render, error=f"AI Error: {error_str}")
 
 @app.route('/get_setpoints', methods=['GET'])
 def get_setpoints():
     # The ESP32 calls this endpoint every 15 seconds
-    return jsonify(current_setpoints), 200
+    with state_lock:
+        state_to_return = current_setpoints.copy()
+    return jsonify(state_to_return), 200
 
 @app.route('/api/state', methods=['GET'])
 def get_state():
-    # Endpoint for dynamic AJAX updates in the web UI
-    return jsonify(current_setpoints), 200
+    # Endpoint for dynamic AJAX updates in the web UI, includes live telemetry
+    with state_lock:
+        state_to_return = current_setpoints.copy()
+        state_to_return["telemetry"] = last_telemetry.copy()
+    return jsonify(state_to_return), 200
+
+@app.route('/api/telemetry', methods=['POST'])
+def post_telemetry():
+    """Logs current temperature/humidity reading from the physical ESP32 controller."""
+    try:
+        # Check payload
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Missing JSON body"}), 400
+            
+        temp = extract_float(data.get("temperature"), None)
+        hum = extract_float(data.get("humidity"), None)
+        is_cooling = extract_int(data.get("is_cooling"), 0)
+        
+        if temp is None or hum is None:
+            return jsonify({"error": "temperature and humidity values are required"}), 400
+            
+        # Store in database
+        with sqlite3.connect(DATABASE_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO telemetry (temperature, humidity, is_cooling) VALUES (?, ?, ?)",
+                (temp, hum, is_cooling)
+            )
+            conn.commit()
+            
+        # Update dynamic active telemetry state
+        with state_lock:
+            last_telemetry["temperature"] = temp
+            last_telemetry["humidity"] = hum
+            last_telemetry["is_cooling"] = is_cooling
+            last_telemetry["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+        return jsonify({"status": "success"}), 201
+    except Exception as e:
+        print(f"Error handling telemetry data: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/history', methods=['GET'])
+def get_history():
+    """Fetches telemetry history logs for dashboard charting."""
+    try:
+        limit = extract_int(request.args.get('limit'), 30)
+        with sqlite3.connect(DATABASE_PATH) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            # Chronological order for plotting
+            cursor.execute(
+                "SELECT timestamp, temperature, humidity, is_cooling FROM telemetry ORDER BY id DESC LIMIT ?",
+                (limit,)
+            )
+            telemetry_rows = cursor.fetchall()
+            telemetry_data = [dict(row) for row in reversed(telemetry_rows)]
+            
+            # Historical scan results
+            cursor.execute(
+                "SELECT timestamp, fruit, freshness, confidence, decay_index, days_remaining, ai_reasoning FROM scan_history ORDER BY id DESC LIMIT ?",
+                (limit,)
+            )
+            scan_rows = cursor.fetchall()
+            scan_history_data = [dict(row) for row in scan_rows]
+            
+        return jsonify({
+            "telemetry": telemetry_data,
+            "scans": scan_history_data
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    # host='0.0.0.0' allows devices on the network to access the server
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Determine configuration via environment variables
+    flask_debug = os.environ.get("FLASK_DEBUG", "false").lower() in ("true", "1")
+    use_https = os.environ.get("USE_HTTPS", "false").lower() in ("true", "1")
+    
+    if use_https:
+        try:
+            print("Starting Flask server with self-signed (adhoc) SSL context...")
+            app.run(host='0.0.0.0', port=5000, debug=flask_debug, ssl_context='adhoc')
+        except Exception as e:
+            print(f"Error: Could not run Flask with SSL context: {e}. Falling back to plain HTTP.")
+            app.run(host='0.0.0.0', port=5000, debug=flask_debug)
+    else:
+        print("Starting Flask server over HTTP...")
+        app.run(host='0.0.0.0', port=5000, debug=flask_debug)

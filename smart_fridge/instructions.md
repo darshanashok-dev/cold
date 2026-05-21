@@ -10,7 +10,7 @@ Ensure you have Python installed, then set up the required dependencies.
 
 ```bash
 # Navigate to project folder
-cd /home/da/cold/smart_fridge
+cd smart_fridge
 
 # Install Python requirements
 pip install flask google-generativeai pillow python-dotenv
@@ -22,7 +22,7 @@ pip install flask google-generativeai pillow python-dotenv
 
 You can run the portal in **Mock Mode** automatically if you do not have an API key. To connect to the real Gemini AI:
 
-1. Open the `.env` file at `/home/da/cold/smart_fridge/.env`.
+1. Open the `.env` file at `smart_fridge/.env`.
 2. Replace `YOUR_GEMINI_API_KEY_HERE` with your actual Gemini API Key:
    ```env
    GEMINI_API_KEY=AIzaSy...

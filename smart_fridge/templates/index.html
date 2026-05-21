@@ -9,495 +9,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
     
-    <style>
-        :root {
-            --bg-color: #0b0f19;
-            --panel-bg: rgba(22, 28, 45, 0.65);
-            --border-color: rgba(255, 255, 255, 0.08);
-            --accent-primary: #6366f1; /* Indigo */
-            --accent-glow: rgba(99, 102, 241, 0.4);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --cold-blue: #38bdf8;
-            --fresh-green: #34d399;
-            --warning-orange: #fb923c;
-            --danger-red: #f87171;
-            --card-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 40px 20px;
-            overflow-x: hidden;
-            position: relative;
-        }
-
-        /* Ambient floating backgrounds for modern look */
-        .ambient-glow {
-            position: absolute;
-            width: 300px;
-            height: 300px;
-            border-radius: 50%;
-            filter: blur(120px);
-            z-index: -1;
-            opacity: 0.12;
-            animation: float 10s ease-in-out infinite alternate;
-            pointer-events: none;
-        }
-        .glow-1 {
-            background: var(--accent-primary);
-            top: 10%;
-            left: 15%;
-        }
-        .glow-2 {
-            background: var(--cold-blue);
-            bottom: 10%;
-            right: 15%;
-            animation-delay: -5s;
-        }
-        @keyframes float {
-            0% { transform: translateY(0) scale(1); }
-            100% { transform: translateY(30px) scale(1.1); }
-        }
-
-        header {
-            margin: 10px 0 30px;
-            text-align: center;
-            animation: fadeInDown 0.6s ease-out;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-        }
-
-
-
-        h1 {
-            font-family: 'Outfit', sans-serif;
-            font-size: 2.4rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #a5b4fc 0%, #38bdf8 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -1px;
-            margin-bottom: 2px;
-        }
-
-        .subtitle {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 480px;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-            animation: fadeInUp 0.8s ease-out;
-            z-index: 1;
-        }
-
-        /* Glassmorphism Panel */
-        .card {
-            background: var(--panel-bg);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border: 1px solid var(--border-color);
-            border-radius: 24px;
-            padding: 28px;
-            box-shadow: var(--card-shadow);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .card:hover {
-            border-color: rgba(99, 102, 241, 0.25);
-            box-shadow: 0 25px 50px -12px rgba(99, 102, 241, 0.12);
-            transform: translateY(-2px);
-        }
-
-        .card-title {
-            font-family: 'Outfit', sans-serif;
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--text-main);
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            padding-bottom: 12px;
-            letter-spacing: -0.2px;
-        }
-
-        .card-title svg {
-            color: var(--accent-primary);
-        }
-
-        /* Dashboard Data Display */
-        .data-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .data-label {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            font-weight: 500;
-        }
-
-        .data-value {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: var(--text-main);
-            transition: color 0.3s ease;
-        }
-
-        .metric-value {
-            font-family: 'Outfit', sans-serif;
-            font-size: 1.15rem;
-            font-weight: 700;
-        }
-
-        .reasoning-text {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            line-height: 1.5;
-            font-style: italic;
-        }
-
-        .fruit-badge {
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(56, 189, 248, 0.12) 100%);
-            color: #c7d2fe;
-            padding: 6px 14px;
-            border-radius: 50px;
-            border: 1px solid rgba(99, 102, 241, 0.25);
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.9rem;
-            font-weight: 600;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .freshness-badge {
-            padding: 6px 14px;
-            border-radius: 50px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        }
-        
-        .freshness-fresh {
-            background: rgba(52, 211, 153, 0.12);
-            color: var(--fresh-green);
-            border: 1px solid rgba(52, 211, 153, 0.25);
-        }
-
-        .freshness-unknown {
-            background: rgba(148, 163, 184, 0.12);
-            color: var(--text-muted);
-            border: 1px solid rgba(148, 163, 184, 0.25);
-        }
-
-        .temp-range {
-            font-size: 2rem;
-            font-weight: 800;
-            color: var(--cold-blue);
-            font-family: 'Outfit', sans-serif;
-            letter-spacing: -1px;
-            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 30px rgba(56, 189, 248, 0.15);
-        }
-
-        .footer-note {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            text-align: center;
-            margin-top: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            border-top: 1px solid rgba(255, 255, 255, 0.04);
-            padding-top: 14px;
-        }
-
-        .pulse-dot {
-            width: 7px;
-            height: 7px;
-            background-color: var(--fresh-green);
-            border-radius: 50%;
-            display: inline-block;
-            box-shadow: 0 0 10px var(--fresh-green);
-            animation: pulse 1.5s infinite;
-        }
-
-        /* Upload Area */
-        .upload-zone {
-            border: 2px dashed rgba(99, 102, 241, 0.2);
-            border-radius: 20px;
-            padding: 36px 20px;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            background: rgba(255, 255, 255, 0.01);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 14px;
-        }
-
-        .upload-zone:hover {
-            border-color: var(--accent-primary);
-            background: rgba(99, 102, 241, 0.04);
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.08) inset;
-        }
-
-        .upload-icon {
-            font-size: 2.2rem;
-            color: var(--text-muted);
-            transition: color 0.3s ease, transform 0.3s ease;
-        }
-
-        .upload-zone:hover .upload-icon {
-            color: var(--accent-primary);
-            transform: translateY(-2px);
-        }
-
-        .upload-text {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            text-align: center;
-            line-height: 1.4;
-        }
-
-        .upload-text strong {
-            color: var(--text-main);
-        }
-
-        #file-input {
-            display: none;
-        }
-
-        /* Image Preview */
-        .preview-container {
-            display: none;
-            width: 100%;
-            border-radius: 16px;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            position: relative;
-            aspect-ratio: 4/3;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        .preview-img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .preview-remove {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: rgba(15, 23, 42, 0.85);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            color: var(--text-main);
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-weight: bold;
-            font-size: 1.1rem;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        }
-
-        .preview-remove:hover {
-            background: var(--danger-red);
-            transform: scale(1.05);
-        }
-
-        /* Action Button */
-        .btn {
-            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-            color: white;
-            border: none;
-            border-radius: 16px;
-            padding: 16px 28px;
-            font-size: 1rem;
-            font-weight: 700;
-            width: 100%;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 20px;
-            letter-spacing: 0.3px;
-        }
-
-        .btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 30px -5px rgba(99, 102, 241, 0.5);
-            filter: brightness(1.05);
-        }
-
-        .btn:active:not(:disabled) {
-            transform: translateY(0);
-        }
-
-        .btn:disabled {
-            background: #272d3d;
-            box-shadow: none;
-            cursor: not-allowed;
-            opacity: 0.5;
-            color: var(--text-muted);
-            border: 1px solid rgba(255, 255, 255, 0.03);
-        }
-
-        /* Loader Overlay */
-        .loader-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(11, 15, 25, 0.85);
-            backdrop-filter: blur(12px);
-            z-index: 1000;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            gap: 24px;
-        }
-
-        .spinner {
-            width: 56px;
-            height: 56px;
-            border: 4px solid rgba(99, 102, 241, 0.1);
-            border-top: 4px solid var(--accent-primary);
-            border-radius: 50%;
-            animation: spin 1s cubic-bezier(0.55, 0.055, 0.675, 0.19) infinite;
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
-        }
-
-        .loader-text {
-            font-family: 'Outfit', sans-serif;
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--text-main);
-            text-align: center;
-            animation: pulse 1.5s infinite;
-            letter-spacing: -0.2px;
-        }
-
-        /* Toast Messages */
-        .toast {
-            visibility: hidden;
-            min-width: 280px;
-            background-color: #10b981;
-            color: white;
-            font-weight: 600;
-            text-align: center;
-            border-radius: 14px;
-            padding: 16px 24px;
-            position: fixed;
-            z-index: 999;
-            left: 50%;
-            bottom: 40px;
-            transform: translateX(-50%);
-            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
-            opacity: 0;
-            transition: opacity 0.3s, visibility 0.3s, transform 0.3s;
-            font-size: 0.95rem;
-        }
-
-        .toast.show {
-            visibility: visible;
-            opacity: 1;
-            transform: translateX(-50%) translateY(-5px);
-        }
-
-        .toast.error {
-            background-color: var(--danger-red);
-            box-shadow: 0 10px 30px rgba(248, 113, 113, 0.3);
-        }
-
-        /* Keyframes */
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        @keyframes pulse {
-            0% { opacity: 0.6; }
-            50% { opacity: 1; }
-            100% { opacity: 0.6; }
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(24px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-24px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @media (max-width: 480px) {
-            body {
-                padding: 20px 10px;
-            }
-            h1 {
-                font-size: 2.1rem;
-            }
-            .card {
-                padding: 24px;
-            }
-        }
-    </style>
+    <!-- Chart.js for telemetry history visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Link external CSS stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
@@ -508,15 +24,57 @@
     <header>
         <h1>Smart Storage AI</h1>
         <p class="subtitle">Cloud-Edge Thermo-regulation Portal</p>
+        
+        <!-- Theme Toggle Button -->
+        <button class="theme-toggle-btn" id="theme-toggle" title="Toggle Light/Dark Mode">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        </button>
     </header>
 
     <div class="container">
         
+        <!-- Live Controller Telemetry Panel -->
+        <div class="card">
+            <div class="card-title">
+                <div class="card-title-left">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path></svg>
+                    Live Controller Telemetry
+                </div>
+            </div>
+            
+            <div class="telemetry-grid">
+                <div class="telemetry-card">
+                    <div class="data-label">Temperature</div>
+                    <div class="telemetry-val telemetry-val-temp" id="live-temp">--°C</div>
+                </div>
+                <div class="telemetry-card">
+                    <div class="data-label">Humidity</div>
+                    <div class="telemetry-val telemetry-val-hum" id="live-hum">--%</div>
+                </div>
+            </div>
+            
+            <div class="data-row" style="margin-top: 12px; margin-bottom: 4px;">
+                <div class="data-label">Relay Cooling State</div>
+                <div class="data-value" id="live-status" style="font-weight: 700;">IDLE (OFF)</div>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="historyChart"></canvas>
+            </div>
+            
+            <div class="footer-note" style="margin-top: 14px;">
+                <span class="pulse-dot offline" id="sync-pulse"></span>
+                <span id="sync-desc">ESP32 offline or awaiting sync...</span>
+            </div>
+        </div>
+        
         <!-- Live System Target Panel -->
         <div class="card">
             <div class="card-title">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="feather feather-activity"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                Current System Target
+                <div class="card-title-left">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                    Current System Target
+                </div>
             </div>
             
             <div class="data-row">
@@ -562,18 +120,15 @@
                 <p class="data-label" style="margin-bottom: 6px; font-weight: 600;">AI Rationale</p>
                 <p class="reasoning-text" id="ai-reasoning">{{ state.ai_reasoning }}</p>
             </div>
-
-            <div class="footer-note">
-                <span class="pulse-dot"></span>
-                <span>ESP32 controller is actively synced and maintaining range.</span>
-            </div>
         </div>
 
         <!-- Upload and Analyze Panel -->
         <div class="card">
             <div class="card-title">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="feather feather-camera"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                Analyze Produce
+                <div class="card-title-left">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                    Analyze Produce
+                </div>
             </div>
             
             <form id="upload-form" action="/detect" method="POST" enctype="multipart/form-data">
@@ -600,7 +155,7 @@
                 <input type="file" id="file-input" name="image" accept="image/*" capture="environment" required onchange="handleFileSelect(this)">
                 
                 <button type="submit" class="btn" id="submit-btn" disabled>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="feather feather-cpu"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="15" x2="23" y2="15"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="15" x2="4" y2="15"></line></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="15" x2="23" y2="15"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="15" x2="4" y2="15"></line></svg>
                     Analyze with Gemini AI
                 </button>
             </form>
@@ -617,216 +172,7 @@
     <!-- Toast Notification -->
     <div class="toast" id="toast">Update Success!</div>
 
-    <script>
-        // Handle custom upload zone interactions
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('file-input');
-        const previewContainer = document.getElementById('preview-container');
-        const previewImg = document.getElementById('preview-img');
-        const uploadPrompt = document.getElementById('upload-prompt');
-        const submitBtn = document.getElementById('submit-btn');
-        const form = document.getElementById('upload-form');
-        const loaderOverlay = document.getElementById('loader-overlay');
-        const loaderText = document.getElementById('loader-text');
-        
-        // Loader phrases to make the process feel interactive
-        const loaderPhrases = [
-            "Peering into the storage box...",
-            "Invoking Gemini AI Vision...",
-            "Identifying fruit parameters...",
-            "Estimating freshness indexes...",
-            "Updating thermostatic target boundaries..."
-        ];
-
-        // Drag and drop events
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropZone.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                dropZone.style.borderColor = 'var(--accent-primary)';
-                dropZone.style.background = 'rgba(99, 102, 241, 0.08)';
-            }, false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                dropZone.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-                dropZone.style.background = 'rgba(255, 255, 255, 0.02)';
-            }, false);
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            if (files.length > 0) {
-                fileInput.files = files;
-                handleFileSelect(fileInput);
-            }
-        }, false);
-
-        // Preview rendering on image selection
-        function handleFileSelect(input) {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    previewImg.src = e.target.result;
-                    uploadPrompt.style.display = 'none';
-                    previewContainer.style.display = 'block';
-                    submitBtn.disabled = false;
-                };
-                reader.readAsDataURL(input.files[0]);
-            }
-        }
-
-        // Reset file selection
-        function resetFileSelection(event) {
-            event.stopPropagation(); // Avoid triggering file input click
-            fileInput.value = '';
-            previewImg.src = '';
-            previewContainer.style.display = 'none';
-            uploadPrompt.style.display = 'flex';
-            submitBtn.disabled = true;
-        }
-
-        // Form Submit interception for seamless AJAX upload
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // Show Loader and start text cycle
-            loaderOverlay.style.display = 'flex';
-            let phraseIndex = 0;
-            loaderText.innerText = loaderPhrases[0];
-            const textInterval = setInterval(() => {
-                phraseIndex = (phraseIndex + 1) % loaderPhrases.length;
-                loaderText.innerText = loaderPhrases[phraseIndex];
-            }, 1800);
-
-            // Construct FormData
-            const formData = new FormData(form);
-
-            // Send via fetch
-            fetch('/detect', {
-                method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: formData
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => { throw new Error(err.error || 'Server error') });
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Update UI state
-                updateUIState(data);
-                showToast("System State Updated Successfully!");
-                resetFileSelection({ stopPropagation: () => {} });
-            })
-            .catch(error => {
-                console.error("Upload failed: ", error);
-                showToast(error.message || "Failed to analyze image.", true);
-            })
-            .finally(() => {
-                clearInterval(textInterval);
-                loaderOverlay.style.display = 'none';
-            });
-        });
-
-        // Update dashboard elements dynamically
-        function updateUIState(state) {
-            // Fruit badge
-            const fruitNameEl = document.getElementById('fruit-name');
-            fruitNameEl.innerHTML = `<span class="fruit-badge">${state.fruit}</span>`;
-            
-            // Freshness rating
-            const freshnessEl = document.getElementById('freshness-rating');
-            if (state.freshness.toLowerCase() === 'fresh') {
-                freshnessEl.innerHTML = `<span class="freshness-badge freshness-fresh">Fresh</span>`;
-            } else {
-                freshnessEl.innerHTML = `<span class="freshness-badge freshness-unknown">${state.freshness}</span>`;
-            }
-
-            // Temp range
-            const tempRangeEl = document.getElementById('temp-range');
-            tempRangeEl.innerText = `${state.target_low.toFixed(1)}°C - ${state.target_high.toFixed(1)}°C`;
-
-            // Confidence
-            const confidenceRow = document.getElementById('confidence-row');
-            const confidenceVal = document.getElementById('confidence-value');
-            if (state.confidence && state.confidence > 0) {
-                confidenceVal.innerHTML = `<span class="metric-value">${state.confidence.toFixed(1)}%</span>`;
-                confidenceRow.style.display = 'flex';
-            } else {
-                confidenceRow.style.display = 'none';
-            }
-
-            // Decay Index
-            const decayRow = document.getElementById('decay-row');
-            const decayVal = document.getElementById('decay-value');
-            if (state.decay_index !== undefined && state.decay_index > 0) {
-                decayVal.innerHTML = `<span class="metric-value text-rose-400">${state.decay_index.toFixed(1)}%</span>`;
-                decayRow.style.display = 'flex';
-            } else {
-                decayRow.style.display = 'none';
-            }
-
-            // Shelf Life
-            const shelfLifeRow = document.getElementById('shelf-life-row');
-            const shelfLifeVal = document.getElementById('shelf-life-value');
-            if (state.days_remaining && state.days_remaining > 0) {
-                shelfLifeVal.innerHTML = `<span class="metric-value text-sky-400">${state.days_remaining} Days</span>`;
-                shelfLifeRow.style.display = 'flex';
-            } else {
-                shelfLifeRow.style.display = 'none';
-            }
-
-            // Reasoning
-            const reasoningContainer = document.getElementById('reasoning-container');
-            const reasoningText = document.getElementById('ai-reasoning');
-            if (state.ai_reasoning && state.ai_reasoning !== 'Awaiting visual diagnostics trigger.') {
-                reasoningText.innerText = state.ai_reasoning;
-                reasoningContainer.style.display = 'block';
-            } else {
-                reasoningContainer.style.display = 'none';
-            }
-        }
-
-        // Periodic state polling (Updates UI if changed elsewhere or by ESP32)
-        function startStatePolling() {
-            setInterval(() => {
-                // Don't poll if the loader overlay is showing
-                if (loaderOverlay.style.display === 'flex') return;
-                
-                fetch('/api/state')
-                    .then(response => response.json())
-                    .then(data => {
-                        updateUIState(data);
-                    })
-                    .catch(err => console.error("Error polling state:", err));
-            }, 3000);
-        }
-
-        // Show Toast Notifications
-        function showToast(message, isError = false) {
-            const toast = document.getElementById('toast');
-            toast.innerText = message;
-            
-            if (isError) {
-                toast.classList.add('error');
-            } else {
-                toast.classList.remove('error');
-            }
-            
-            toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 3500);
-        }
-
-        // Start polling on boot
-        startStatePolling();
-    </script>
+    <!-- Link external JS script -->
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>
