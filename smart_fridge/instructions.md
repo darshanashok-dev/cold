@@ -12,22 +12,28 @@ Ensure you have Python installed, then set up the required dependencies.
 # Navigate to project folder
 cd smart_fridge
 
-# Install Python requirements
-pip install flask google-generativeai pillow python-dotenv
+# Install Python requirements (including cryptography for secure ad-hoc SSL contexts)
+pip install flask google-generativeai pillow python-dotenv cryptography
 ```
 
 ---
 
-## Step 2: Configure Gemini API Key
+## Step 2: Configure Environment & Toggles
 
-You can run the portal in **Mock Mode** automatically if you do not have an API key. To connect to the real Gemini AI:
+Configure your environment settings inside `smart_fridge/.env`:
 
-1. Open the `.env` file at `smart_fridge/.env`.
-2. Replace `YOUR_GEMINI_API_KEY_HERE` with your actual Gemini API Key:
+1. **Gemini API Key**: Replace the placeholder with your actual key to bypass mock simulated data:
    ```env
    GEMINI_API_KEY=AIzaSy...
    ```
-3. Save the file. The Flask server will reload automatically.
+2. **Secure HTTPS Toggle**: Enable ad-hoc SSL contexts. This is **mandatory** for browsers to allow remote camera (`getUserMedia`) access over a shared Wi-Fi network:
+   ```env
+   USE_HTTPS=true
+   ```
+3. **Debug Toggle**: Set Flask debug outputs:
+   ```env
+   FLASK_DEBUG=true
+   ```
 
 ---
 
@@ -38,8 +44,12 @@ Start the local server so it is accessible from your network:
 ```bash
 python app.py
 ```
-- **Local Access**: Open [http://localhost:5000/](http://localhost:5000/) on your machine.
-- **Network Access**: Open `http://<your-laptop-ip>:5000/` from any mobile device or device on the same local network/Wi-Fi hotspot.
+- **Local Access**: Open [https://localhost:5000/](https://localhost:5000/) on your computer.
+- **Local Network Access**: Open `https://<your-laptop-ip>:5000/` from your mobile phone.
+- **PWA Installation**: Tap the browser share/menu button on your mobile device and select **Add to Home Screen** to install the dashboard as a native standalone application.
+
+> [!WARNING]
+> **SSL Certificate Warning**: Because the Flask server generates self-signed certificates on the fly, your browser will display a safety warning when loading the page over HTTPS on your local network. You must click **Advanced** -> **Proceed to website** to continue. Once proceeded, the browser grants the site full access to the webcam secure context.
 
 ---
 
@@ -54,14 +64,14 @@ Open [smart_fridge.ino](file:///home/da/cold/smart_fridge/smart_fridge.ino) in t
    const char* password = "YOUR_HOTSPOT_PASSWORD";
    ```
 2. **Configure Flask Server URL** (Line 15):
-   Replace `192.168.1.XXX` with your laptop's actual IPv4 address (e.g. found using `ipconfig` on Windows or `ifconfig` / `ip a` on Linux):
+   Replace `192.168.1.XXX` with your laptop's actual IPv4 address. Note that if you enabled `USE_HTTPS`, you should change the protocol to `https://`:
    ```cpp
-   const char* serverUrl = "http://192.168.x.x:5000/get_setpoints";
+   const char* serverUrl = "https://192.168.x.x:5000/get_setpoints";
    ```
 3. **Install Arduino Libraries**:
    Go to **Tools > Manage Libraries** in Arduino IDE and install the following libraries (including all their suggested dependencies):
-   - `DHT sensor library` by Adafruit (Click "Install All" when prompted to automatically install `Adafruit Unified Sensor`)
-   - `Adafruit SSD1306` by Adafruit (Click "Install All" when prompted to automatically install `Adafruit GFX Library`)
+   - `DHT sensor library` by Adafruit (Click "Install All" to automatically install `Adafruit Unified Sensor`)
+   - `Adafruit SSD1306` by Adafruit (Click "Install All" to automatically install `Adafruit GFX Library`)
    - `ArduinoJson` (v6 or v7) by Benoit Blanchon
 4. **Flash to board**: Connect your ESP32 via USB, select your board and port, and click **Upload**.
 
@@ -83,10 +93,11 @@ Set up your physical sensors and outputs on the ESP32 according to these pin def
 ## Step 6: Complete End-to-End Test
 
 1. Power on the ESP32 with sensors connected. Verify on the OLED display or Arduino Serial Monitor that it connects to Wi-Fi.
-2. Open the web interface at `http://<your-laptop-ip>:5000/`.
-3. Upload an image of produce (e.g., Apple or Banana) and click **Analyze with Gemini AI**.
-4. Once the diagnosis is processed:
-   - The web UI will show updated Target Temperatures.
-   - The ESP32 will fetch these setpoints on its next poll (every 15s).
-   - The OLED display will update to show the currently active fruit and temperature range.
+2. Open the web interface at `https://<your-laptop-ip>:5000/` from your phone.
+3. Switch to the **Live Camera** tab under **Analyze Produce**.
+4. Tap **Start Feed** to open the viewfinder, align a fruit or vegetable inside the camera frame, and click **Capture & Scan**.
+5. Once the diagnosis is processed:
+   - The webpage will show the classification box overlaid on the viewfinder and update the target temperatures.
+   - The ESP32 will fetch these setpoints on its next poll (every 15s) and display them on the OLED screen.
    - The cooling status on the ESP32 will switch to `COOLING (ON)` if the ambient sensor temperature is higher than the target limit.
+   - The sensor telemetry trend history can be viewed in the **History** tab or plotted on the dashboard line graph in real-time.

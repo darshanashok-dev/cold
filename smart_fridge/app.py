@@ -3,6 +3,7 @@ import json
 import re
 import sqlite3
 import threading
+import io
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template
 import google.generativeai as genai
@@ -228,40 +229,70 @@ def extract_int(value, default=0):
 def index():
     with state_lock:
         state_to_render = current_setpoints.copy()
-    return render_template('index.html', state=state_to_render)
+    state_to_render["use_mock_mode"] = use_mock_mode
+    return render_template('index.html', state=state_to_render, api_key=api_key)
 
 @app.route('/detect', methods=['POST'])
 def detect_fruit():
     global current_setpoints
     
-    if 'image' not in request.files:
-        error_msg = "No image file part provided"
-        if is_ajax_request():
-            return jsonify({"error": error_msg}), 400
-        with state_lock:
-            state_to_render = current_setpoints.copy()
-        return render_template('index.html', state=state_to_render, error=error_msg)
+    # Check if this is a raw binary POST (PWA/Mobile capture stream or application/octet-stream)
+    is_raw_bytes = False
+    filename_lower = ""
+    
+    if request.mimetype == 'application/octet-stream' or 'image' not in request.files:
+        # Accept raw bytes
+        raw_data = request.get_data()
+        if not raw_data:
+            error_msg = "No image data provided"
+            if is_ajax_request():
+                return jsonify({"error": error_msg}), 400
+            with state_lock:
+                state_to_render = current_setpoints.copy()
+            return render_template('index.html', state=state_to_render, error=error_msg)
+        
+        # Validate raw data size (max 5MB)
+        if len(raw_data) > MAX_FILE_SIZE:
+            error_msg = f"Data size too large: {len(raw_data) / (1024*1024):.1f}MB. Maximum allowed is 5MB."
+            if is_ajax_request():
+                return jsonify({"error": error_msg}), 400
+            with state_lock:
+                state_to_render = current_setpoints.copy()
+            return render_template('index.html', state=state_to_render, error=error_msg)
+            
+        try:
+            img = Image.open(io.BytesIO(raw_data))
+            is_raw_bytes = True
+        except Exception as e:
+            error_msg = f"Failed to parse raw image data: {str(e)}"
+            if is_ajax_request():
+                return jsonify({"error": error_msg}), 400
+            with state_lock:
+                state_to_render = current_setpoints.copy()
+            return render_template('index.html', state=state_to_render, error=error_msg)
+    else:
+        file = request.files['image']
+        if file.filename == '':
+            error_msg = "No selected image file"
+            if is_ajax_request():
+                return jsonify({"error": error_msg}), 400
+            with state_lock:
+                state_to_render = current_setpoints.copy()
+            return render_template('index.html', state=state_to_render, error=error_msg)
 
-    file = request.files['image']
-    if file.filename == '':
-        error_msg = "No selected image file"
-        if is_ajax_request():
-            return jsonify({"error": error_msg}), 400
-        with state_lock:
-            state_to_render = current_setpoints.copy()
-        return render_template('index.html', state=state_to_render, error=error_msg)
-
-    # Perform file validation checks
-    is_valid, validation_error = validate_image_upload(file)
-    if not is_valid:
-        if is_ajax_request():
-            return jsonify({"error": validation_error}), 400
-        with state_lock:
-            state_to_render = current_setpoints.copy()
-        return render_template('index.html', state=state_to_render, error=validation_error)
+        # Perform file validation checks
+        is_valid, validation_error = validate_image_upload(file)
+        if not is_valid:
+            if is_ajax_request():
+                return jsonify({"error": validation_error}), 400
+            with state_lock:
+                state_to_render = current_setpoints.copy()
+            return render_template('index.html', state=state_to_render, error=validation_error)
 
     try:
-        img = Image.open(file.stream)
+        if not is_raw_bytes:
+            img = Image.open(file.stream)
+            filename_lower = getattr(file, 'filename', '').lower()
         prompt = """
         Analyze this image of produce inside a cold storage box.
         Identify the main fruit (e.g., Apple, Banana, Tomato, Orange).
@@ -396,12 +427,14 @@ def detect_fruit():
         if is_ajax_request():
             with state_lock:
                 state_to_return = current_setpoints.copy()
+            state_to_return["use_mock_mode"] = use_mock_mode
             return jsonify(state_to_return), 200
             
         # Redirect back to the web UI after traditional form upload
         with state_lock:
             state_to_render = current_setpoints.copy()
-        return render_template('index.html', state=state_to_render, success=True)
+        state_to_render["use_mock_mode"] = use_mock_mode
+        return render_template('index.html', state=state_to_render, api_key=api_key, success=True)
         
     except Exception as e:
         error_str = str(e)
@@ -425,6 +458,7 @@ def get_state():
     with state_lock:
         state_to_return = current_setpoints.copy()
         state_to_return["telemetry"] = last_telemetry.copy()
+    state_to_return["use_mock_mode"] = use_mock_mode
     return jsonify(state_to_return), 200
 
 @app.route('/api/telemetry', methods=['POST'])
@@ -458,6 +492,7 @@ def post_telemetry():
             last_telemetry["humidity"] = hum
             last_telemetry["is_cooling"] = is_cooling
             last_telemetry["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            last_telemetry["ip"] = request.remote_addr
             
         return jsonify({"status": "success"}), 201
     except Exception as e:
@@ -482,7 +517,7 @@ def get_history():
             
             # Historical scan results
             cursor.execute(
-                "SELECT timestamp, fruit, freshness, confidence, decay_index, days_remaining, ai_reasoning FROM scan_history ORDER BY id DESC LIMIT ?",
+                "SELECT timestamp, fruit, freshness, confidence, decay_index, days_remaining, ai_reasoning, target_low, target_high FROM scan_history ORDER BY id DESC LIMIT ?",
                 (limit,)
             )
             scan_rows = cursor.fetchall()

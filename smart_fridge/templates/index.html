@@ -4,10 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Storage AI Dashboard</title>
+    <meta name="theme-color" content="#0b0f19">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <!-- Modern Premium Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;600;800&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tabler Icons Webfont -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
     
     <!-- Chart.js for telemetry history visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -21,146 +28,274 @@
     <div class="ambient-glow glow-1"></div>
     <div class="ambient-glow glow-2"></div>
 
-    <header>
-        <h1>Smart Storage AI</h1>
-        <p class="subtitle">Cloud-Edge Thermo-regulation Portal</p>
+    <div class="sf-root">
         
-        <!-- Theme Toggle Button -->
-        <button class="theme-toggle-btn" id="theme-toggle" title="Toggle Light/Dark Mode">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-        </button>
-    </header>
-
-    <div class="container">
-        
-        <!-- Live Controller Telemetry Panel -->
-        <div class="card">
-            <div class="card-title">
-                <div class="card-title-left">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path></svg>
-                    Live Controller Telemetry
+        <!-- Top Navigation Bar -->
+        <div class="sf-topbar">
+            <div class="sf-logo">
+                <div class="sf-logo-icon">
+                    <i class="ti ti-temperature-snow" style="font-size: 20px; color: var(--cold-blue);" aria-hidden="true"></i>
+                </div>
+                <div>
+                    <div class="sf-logo-text">Smart Storage AI</div>
+                    <div class="sf-logo-sub">Gemini Vision &middot; ESP32 Edge Control</div>
                 </div>
             </div>
-            
-            <div class="telemetry-grid">
-                <div class="telemetry-card">
-                    <div class="data-label">Temperature</div>
-                    <div class="telemetry-val telemetry-val-temp" id="live-temp">--°C</div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <div class="sf-status-pill">
+                    <span class="sf-dot offline" id="sync-pulse"></span>
+                    <span id="sync-desc">ESP32 awaiting sync...</span>
                 </div>
-                <div class="telemetry-card">
-                    <div class="data-label">Humidity</div>
-                    <div class="telemetry-val telemetry-val-hum" id="live-hum">--%</div>
+                <div class="sf-status-pill" style="gap: 6px;">
+                    <i class="ti ti-refresh" style="font-size: 13px;" aria-hidden="true"></i>
+                    <span id="mode-badge">
+                        {% if state.use_mock_mode or not api_key %}Mock mode{% else %}Cloud mode{% endif %}
+                    </span>
                 </div>
-            </div>
-            
-            <div class="data-row" style="margin-top: 12px; margin-bottom: 4px;">
-                <div class="data-label">Relay Cooling State</div>
-                <div class="data-value" id="live-status" style="font-weight: 700;">IDLE (OFF)</div>
-            </div>
-            
-            <div class="chart-container">
-                <canvas id="historyChart"></canvas>
-            </div>
-            
-            <div class="footer-note" style="margin-top: 14px;">
-                <span class="pulse-dot offline" id="sync-pulse"></span>
-                <span id="sync-desc">ESP32 offline or awaiting sync...</span>
-            </div>
-        </div>
-        
-        <!-- Live System Target Panel -->
-        <div class="card">
-            <div class="card-title">
-                <div class="card-title-left">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                    Current System Target
-                </div>
-            </div>
-            
-            <div class="data-row">
-                <div class="data-label">Active Fruit</div>
-                <div class="data-value" id="fruit-name">
-                    <span class="fruit-badge">{{ state.fruit }}</span>
-                </div>
-            </div>
-            
-            <div class="data-row">
-                <div class="data-label">Freshness Rating</div>
-                <div class="data-value" id="freshness-rating">
-                    {% if state.freshness|lower == 'fresh' %}
-                    <span class="freshness-badge freshness-fresh">Fresh</span>
-                    {% else %}
-                    <span class="freshness-badge freshness-unknown">{{ state.freshness }}</span>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Dynamic AI metrics rows -->
-            <div class="data-row" id="confidence-row" style="display: {% if state.confidence and state.confidence > 0 %}flex{% else %}none{% endif %};">
-                <div class="data-label">AI Confidence</div>
-                <div class="data-value" id="confidence-value"><span class="metric-value">{{ state.confidence }}%</span></div>
-            </div>
-
-            <div class="data-row" id="decay-row" style="display: {% if state.decay_index and state.decay_index > 0 %}flex{% else %}none{% endif %};">
-                <div class="data-label">Decay Index</div>
-                <div class="data-value" id="decay-value"><span class="metric-value text-rose-400">{{ state.decay_index }}%</span></div>
-            </div>
-
-            <div class="data-row" id="shelf-life-row" style="display: {% if state.days_remaining and state.days_remaining > 0 %}flex{% else %}none{% endif %};">
-                <div class="data-label">Est. Shelf-Life</div>
-                <div class="data-value" id="shelf-life-value"><span class="metric-value text-sky-400">{{ state.days_remaining }} Days</span></div>
-            </div>
-            
-            <div class="data-row" style="margin-top: 24px; margin-bottom: 5px;">
-                <div class="data-label">Thermostatic Range</div>
-                <div class="temp-range" id="temp-range">{{ state.target_low }}°C - {{ state.target_high }}°C</div>
-            </div>
-
-            <div id="reasoning-container" style="display: {% if state.ai_reasoning and state.ai_reasoning != 'Awaiting visual diagnostics trigger.' %}block{% else %}none{% endif %}; border-top: 1px solid rgba(255,255,255,0.05); margin-top: 16px; padding-top: 14px;">
-                <p class="data-label" style="margin-bottom: 6px; font-weight: 600;">AI Rationale</p>
-                <p class="reasoning-text" id="ai-reasoning">{{ state.ai_reasoning }}</p>
+                <!-- Theme Toggle Button -->
+                <button class="theme-toggle-btn" id="theme-toggle" title="Toggle Light/Dark Mode" style="margin-left: 4px; padding: 6px;">
+                    <i class="ti ti-sun" style="font-size: 15px;" aria-hidden="true"></i>
+                </button>
             </div>
         </div>
 
-        <!-- Upload and Analyze Panel -->
-        <div class="card">
-            <div class="card-title">
-                <div class="card-title-left">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                    Analyze Produce
-                </div>
-            </div>
+        <!-- Dashboard Layout Grid -->
+        <div class="sf-body">
             
-            <form id="upload-form" action="/detect" method="POST" enctype="multipart/form-data">
-                
-                <!-- Custom Upload Box -->
-                <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-                    <!-- Default UI -->
-                    <div id="upload-prompt" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                        <svg class="upload-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                        <div class="upload-text">
-                            <strong>Tap to capture</strong> or upload image
-                        </div>
+            <!-- Left Side: Diagnostics and History Tabs -->
+            <div class="sf-left">
+                <div class="sf-tabs">
+                    <div class="sf-tab active" id="tab-diagnostics" onclick="switchTab('diagnostics')">Diagnostics</div>
+                    <div class="sf-tab" id="tab-history" onclick="switchTab('history')">History</div>
+                </div>
+
+                <!-- Diagnostics Panel -->
+                <div id="panel-diagnostics">
+                    <div class="sf-section-label">
+                        <i class="ti ti-scan" aria-hidden="true"></i> Current Produce
                     </div>
                     
-                    <!-- Preview UI -->
-                    <div class="preview-container" id="preview-container">
-                        <img class="preview-img" id="preview-img" src="" alt="Capture Preview">
-                        <div class="preview-remove" id="preview-remove" onclick="resetFileSelection(event)">&times;</div>
+                    <div class="sf-card">
+                        <div class="sf-produce-row">
+                            <div class="sf-produce-name" id="produce-name">{{ state.fruit }}</div>
+                            <span class="sf-badge {% if state.freshness|lower == 'fresh' %}fresh-badge{% else %}warn-badge{% endif %}" id="freshness-badge">
+                                {{ state.freshness }}
+                            </span>
+                        </div>
+                        
+                        <div class="sf-metrics-grid">
+                            <div class="sf-metric">
+                                <div class="sf-metric-label">AI confidence</div>
+                                <div class="sf-metric-val teal" id="confidence-val">{{ state.confidence }}%</div>
+                            </div>
+                            <div class="sf-metric">
+                                <div class="sf-metric-label">Decay index</div>
+                                <div class="sf-metric-val amber" id="decay-val">{{ state.decay_index }}%</div>
+                            </div>
+                            <div class="sf-metric">
+                                <div class="sf-metric-label">Shelf life</div>
+                                <div class="sf-metric-val blue" id="shelf-val">{{ state.days_remaining }} days</div>
+                            </div>
+                        </div>
+                        
+                        <p class="sf-reasoning" id="reasoning-text">
+                            {{ state.ai_reasoning }}
+                        </p>
+                    </div>
+
+                    <div class="sf-section-label">
+                        <i class="ti ti-thermometer" aria-hidden="true"></i> Thermostatic Setpoint
+                    </div>
+                    
+                    <div class="sf-card">
+                        <div class="sf-temp-block">
+                            <div>
+                                <div style="font-size: 11px; color: var(--color-text-secondary); margin-bottom: 4px; font-weight: 600;">Target range</div>
+                                <div class="sf-temp-range-label" id="temp-range">{{ state.target_low }} &ndash; {{ state.target_high }}&deg;C</div>
+                            </div>
+                            <div class="sf-temp-bar-wrap">
+                                <div class="sf-temp-bar-track">
+                                    <div class="sf-temp-fill" id="temp-fill" style="left: {{ ((state.target_low|default(12.0) / 30.0) * 100.0)|round(2) }}%; width: {{ (((state.target_high|default(14.0) - state.target_low|default(12.0)) / 30.0) * 100.0)|round(2) }}%;"></div>
+                                </div>
+                                <div class="sf-temp-labels"><span>0&deg;C</span><span>10&deg;C</span><span>20&deg;C</span><span>30&deg;C</span></div>
+                            </div>
+                        </div>
+                        
+                        <div class="sf-divider"></div>
+                        
+                        <div class="sf-esp-grid">
+                            <div class="sf-metric">
+                                <div class="sf-metric-label">Current temp</div>
+                                <div class="sf-metric-val" id="cur-temp">--&deg;C</div>
+                            </div>
+                            <div class="sf-metric">
+                                <div class="sf-metric-label">Humidity</div>
+                                <div class="sf-metric-val" id="cur-hum">--%</div>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 12px; color: var(--color-text-secondary); font-weight: 500;">
+                            <span class="sf-dot" id="cooling-dot" style="background: var(--text-muted); box-shadow: none;"></span>
+                            <span id="cooling-status">No active connection to controller.</span>
+                        </div>
+                    </div>
+
+                    <!-- Telemetry History Chart Card -->
+                    <div class="sf-section-label">
+                        <i class="ti ti-chart-line" aria-hidden="true"></i> Live Readings Trend
+                    </div>
+                    <div class="sf-card" style="padding-bottom: 12px;">
+                        <div class="chart-container">
+                            <canvas id="historyChart"></canvas>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Hidden Native Input -->
-                <!-- accept="image/*" and capture="environment" trigger camera directly on mobile -->
-                <input type="file" id="file-input" name="image" accept="image/*" capture="environment" required onchange="handleFileSelect(this)">
-                
-                <button type="submit" class="btn" id="submit-btn" disabled>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="15" x2="23" y2="15"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="15" x2="4" y2="15"></line></svg>
-                    Analyze with Gemini AI
-                </button>
-            </form>
-        </div>
+                <!-- History Panel (Recent Scans) -->
+                <div id="panel-history" style="display: none;">
+                    <div class="sf-section-label">
+                        <i class="ti ti-history" aria-hidden="true"></i> Recent Scans
+                    </div>
+                    <div class="sf-card">
+                        <div id="history-list">
+                            <div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">
+                                Loading scan history...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Side: Control & Upload Panel -->
+            <div class="sf-right">
+                <div class="sf-section-label">
+                    <i class="ti ti-camera" aria-hidden="true"></i> Analyze Produce
+                </div>
 
+                <div class="sf-card" style="padding: 0; overflow: hidden; position: relative; border-radius: 16px; margin-bottom: 20px;">
+                    <!-- Mode Tabs -->
+                    <div style="display: flex; background: rgba(0, 0, 0, 0.12); border-bottom: 1px solid var(--color-border-tertiary);">
+                        <button type="button" class="sf-tab active" id="mode-camera" onclick="switchCameraMode('camera')" style="flex: 1; background: transparent; padding: 12px; color: var(--text-main); font-family: var(--font-sans); font-weight: 700; cursor: pointer; border: none; font-size: 0.8rem; border-bottom: 2px solid var(--accent-primary); border-radius: 0; outline: none;">
+                            <i class="ti ti-device-camera-phone"></i> Live Camera
+                        </button>
+                        <button type="button" class="sf-tab" id="mode-upload" onclick="switchCameraMode('upload')" style="flex: 1; background: transparent; padding: 12px; color: var(--text-muted); font-family: var(--font-sans); font-weight: 600; cursor: pointer; border: none; font-size: 0.8rem; border-bottom: 2px solid transparent; border-radius: 0; outline: none;">
+                            <i class="ti ti-upload"></i> Upload File
+                        </button>
+                    </div>
+
+                    <!-- Live Camera Feed Panel -->
+                    <div id="panel-camera" style="padding: 16px;">
+                        <div class="viewfinder" id="vf" style="width: 100%; height: 210px; background: #0d1526; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; border-radius: 12px; border: 1px solid var(--border-color);">
+                            <!-- HTML5 Video stream -->
+                            <video id="webcam" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
+                            
+                            <!-- Static Canvas for snapshot -->
+                            <canvas id="photo-canvas" style="display: none;"></canvas>
+
+                            <div class="vf-placeholder" id="vf-idle" style="display: flex; flex-direction: column; align-items: center; gap: 8px; opacity: 0.5;">
+                                <i class="ti ti-camera" style="font-size: 28px; color: rgba(255,255,255,0.4);" aria-hidden="true"></i>
+                                <span style="font-size: 10px; color: rgba(255,255,255,0.4); font-family: var(--font-mono);">Webcam offline. Tap Start.</span>
+                            </div>
+                            
+                            <!-- Target Detection Bounding Box -->
+                            <div class="vf-produce-box" id="detect-box" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 1.5px solid rgba(29, 158, 117, 0.8); border-radius: 8px; width: 110px; height: 110px; display: none; pointer-events: none; z-index: 10;">
+                                <span class="vf-produce-label" id="detect-label" style="position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); font-size: 9px; color: #34d399; font-family: var(--font-mono); white-space: nowrap; background: rgba(10, 15, 28, 0.85); padding: 2px 6px; border-radius: 4px; border: 0.5px solid rgba(52, 211, 153, 0.3);">Apple &middot; 97%</span>
+                            </div>
+                            
+                            <div class="scan-line" id="scan-line" style="position: absolute; left: 16px; right: 16px; height: 1.5px; background: rgba(56, 189, 248, 0.8); top: 50%; display: none; pointer-events: none; animation: scanMove 2s ease-in-out infinite; z-index: 5;"></div>
+                            
+                            <!-- Viewfinder Overlay Corners -->
+                            <div class="vf-overlay" style="position: absolute; inset: 0; pointer-events: none;">
+                                <div class="vf-corner tl" style="position: absolute; width: 14px; height: 14px; border-color: rgba(255,255,255,0.5); border-style: solid; border-width: 2px 0 0 2px; top: 12px; left: 12px; border-top-left-radius: 4px;"></div>
+                                <div class="vf-corner tr" style="position: absolute; width: 14px; height: 14px; border-color: rgba(255,255,255,0.5); border-style: solid; border-width: 2px 2px 0 0; top: 12px; right: 12px; border-top-right-radius: 4px;"></div>
+                                <div class="vf-corner bl" style="position: absolute; width: 14px; height: 14px; border-color: rgba(255,255,255,0.5); border-style: solid; border-width: 0 0 2px 2px; bottom: 12px; left: 12px; border-bottom-left-radius: 4px;"></div>
+                                <div class="vf-corner br" style="position: absolute; width: 14px; height: 14px; border-color: rgba(255,255,255,0.5); border-style: solid; border-width: 0 2px 2px 0; bottom: 12px; right: 12px; border-bottom-right-radius: 4px;"></div>
+                            </div>
+                            <div class="vf-label" id="vf-label" style="position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); font-size: 8px; color: rgba(255,255,255,0.4); font-family: var(--font-mono); letter-spacing: 0.5px; pointer-events: none;">LIVE &middot; GEMINI VISION</div>
+                        </div>
+
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 14px;">
+                            <button type="button" class="sf-btn" id="start-webcam-btn" onclick="startWebcam()" style="flex: 1; padding: 11px;">
+                                <i class="ti ti-video"></i> Start Feed
+                            </button>
+                            <button type="button" class="sf-btn primary" id="capture-webcam-btn" onclick="captureWebcamFrame()" disabled style="flex: 1.5; padding: 11px;">
+                                <i class="ti ti-aperture"></i> Capture &amp; Scan
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Upload File Panel -->
+                    <div id="panel-upload" style="display: none; padding: 16px;">
+                        <form id="upload-form" action="/detect" method="POST" enctype="multipart/form-data">
+                            <div class="sf-upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                                <div id="upload-prompt" style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                                    <div class="sf-upload-icon-wrap">
+                                        <i class="ti ti-camera" style="font-size: 20px;" aria-hidden="true"></i>
+                                    </div>
+                                    <div class="sf-upload-text" id="upload-prompt-text">
+                                        <strong>Tap to select</strong> or drag an image<br>
+                                        Accepts JPG, PNG, WEBP, GIF
+                                    </div>
+                                </div>
+                                
+                                <!-- Preview Box -->
+                                <div class="sf-preview-container" id="preview-container">
+                                    <img class="sf-preview-img" id="preview-img" src="" alt="Capture Preview">
+                                    <div class="sf-preview-remove" id="preview-remove" onclick="resetFileSelection(event)">&times;</div>
+                                </div>
+                            </div>
+
+                            <!-- Native File input -->
+                            <input type="file" id="file-input" name="image" accept="image/*" capture="environment" onchange="handleFileSelect(this)" style="display: none;">
+                            
+                            <button type="submit" class="sf-btn primary" id="submit-btn" disabled>
+                                <i class="ti ti-cpu" style="font-size: 15px;" aria-hidden="true"></i>
+                                Analyze with Gemini AI
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="sf-divider"></div>
+
+                <div class="sf-section-label">
+                    <i class="ti ti-wifi" aria-hidden="true"></i> ESP32 Controller
+                </div>
+                
+                <div class="sf-card">
+                    <div class="sf-esp-row">
+                        <div>
+                            <div class="sf-esp-info">Smart Fridge Node</div>
+                            <div class="sf-esp-addr" id="esp-ip">Awaiting sync...</div>
+                        </div>
+                        <span class="sf-badge warn-badge" id="esp-connection-badge">
+                            Offline
+                        </span>
+                    </div>
+                    
+                    <div class="sf-divider"></div>
+                    
+                    <div style="font-size: 12px; color: var(--color-text-secondary); display: flex; justify-content: space-between;">
+                        <span>Polling interval</span>
+                        <span style="font-family: var(--font-mono); font-weight: 600;">15s</span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--color-text-secondary); display: flex; justify-content: space-between; margin-top: 8px;">
+                        <span>Last sync</span>
+                        <span style="font-family: var(--font-mono); font-weight: 600;" id="last-sync">--</span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--color-text-secondary); display: flex; justify-content: space-between; margin-top: 8px;">
+                        <span>Relay state</span>
+                        <span style="font-family: var(--font-mono); font-weight: 700; color: var(--text-muted);" id="esp-relay-state">OFFLINE</span>
+                    </div>
+                </div>
+
+                <button class="sf-btn" onclick="showHelpDialog()" style="margin-top: 4px;">
+                    <i class="ti ti-help" style="font-size: 14px;" aria-hidden="true"></i>
+                    How do I add humidity-aware setpoints?
+                </button>
+            </div>
+
+        </div>
     </div>
 
     <!-- Spinner Loading State Overlay -->

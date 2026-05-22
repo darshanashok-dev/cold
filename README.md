@@ -7,7 +7,12 @@ A complete modern IoT system that combines cloud-based AI visual diagnostics wit
 ## Key Features
 
 * **Premium Glassmorphic Dashboard**: Mobile-optimized dark mode web portal featuring translucent backdrops, glowing status animations, and dynamic AI metric updates.
-* **Gemini Vision Pipeline**: Automated produce identification (Apple, Banana, Tomato, etc.), freshness rating, decay index calculation, and shelf-life estimation.
+* **Live Webcam Viewfinder & Scanner**: Switch between file uploads and a live camera viewfinder. Capture and upload frames instantly over the network.
+* **On-Screen Bounding Box**: Displays classification overlays directly on the camera viewport upon detection.
+* **PWA Capability**: Fully configured with `manifest.json` and mobile meta tags. Install the dashboard directly on Android, iOS, or Desktop home screens as a native application.
+* **Raw Stream & Form Support**: The `/detect` route supports standard multi-part form submissions and raw octet-stream POSTs for low-latency hardware snapshots.
+* **Gemini Vision Pipeline**: Automated produce identification (Apple, Banana, Tomato, Orange), freshness rating, decay index calculation, and shelf-life estimation.
+* **SQLite Telemetry Database**: Log all telemetry records and AI scan logs for trend analysis, rendered locally using custom Chart.js graphs.
 * **Mock Diagnostics Mode**: Fallback system that runs automatically if a Gemini API Key is missing, enabling complete testing and local developer workflows without active cloud bills.
 * **Hysteresis Cooling Loop**: Safe edge logic running on the ESP32 that initiates cooling when temperature exceeds boundaries, shutting down when optimal temperatures are restored.
 
@@ -31,24 +36,31 @@ To build the physical edge-device controller, connect your sensors to the ESP32 
 ### 1. Python Environment Setup
 Install dependencies in your terminal:
 ```bash
-cd /home/da/cold/smart_fridge
-pip install flask google-generativeai pillow python-dotenv
+cd smart_fridge
+pip install flask google-generativeai pillow python-dotenv cryptography
 ```
 
-### 2. Configure Your API Keys (Optional)
-Copy or create a `.env` file in the project root:
+### 2. Configure Your Environment Toggles
+Copy or create a `.env` file in the `smart_fridge` directory:
 ```env
 GEMINI_API_KEY=your_actual_api_key_here
+USE_HTTPS=true
+FLASK_DEBUG=true
 ```
-*Note: If no API key is specified, the server will automatically fallback to **Mock Mode** using simulated diagnostic data so you can test all features.*
+*   `GEMINI_API_KEY`: If blank or missing, the server operates in **Mock Mode** using randomized produce metadata.
+*   `USE_HTTPS`: Enables self-signed ad-hoc SSL certificates (required for live camera access on mobile devices).
+*   `FLASK_DEBUG`: Toggles debug outputs and hot-reloads.
 
 ### 3. Run the Flask Server
 Launch the local web server:
 ```bash
 python app.py
 ```
-* Access local dashboard at: `http://localhost:5000/`
+* Access local dashboard at: `http://localhost:5000/` (or `https://localhost:5000/` if HTTPS is enabled)
 * Access API state at: `http://localhost:5000/api/state`
+
+> [!IMPORTANT]
+> **Webcam Secure Contexts**: Modern browsers block webcam streaming via `getUserMedia` on plain HTTP unless the host is `127.0.0.1` or `localhost`. To stream camera frames from a physical phone on the same network, you **must** configure `USE_HTTPS=true` in your `.env` file, connect to `https://<your-laptop-ip>:5000/`, and bypass the self-signed certificate warning in your phone's browser.
 
 ---
 
