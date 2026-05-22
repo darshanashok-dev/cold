@@ -3,3 +3,4 @@ google-generativeai==0.8.6
 pillow==12.2.0
 python-dotenv==1.2.2
 cryptography==46.0.7
+pyopenssl==24.3.0

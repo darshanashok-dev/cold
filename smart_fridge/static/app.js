@@ -123,14 +123,18 @@ if (form) {
         // Construct FormData
         const formData = new FormData(form);
 
-        // Send via fetch
+        // Send via fetch with 15s timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
         fetch('/detect', {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            body: formData
+            body: formData,
+            signal: controller.signal
         })
         .then(response => {
             if (!response.ok) {
@@ -150,9 +154,14 @@ if (form) {
         })
         .catch(error => {
             console.error("Upload failed: ", error);
-            showToast(error.message || "Failed to analyze image.", true);
+            if (error.name === 'AbortError') {
+                showToast("Request timed out. Server did not respond.", true);
+            } else {
+                showToast(error.message || "Failed to analyze image.", true);
+            }
         })
         .finally(() => {
+            clearTimeout(timeoutId);
             clearInterval(textInterval);
             loaderOverlay.style.display = 'none';
         });
@@ -428,7 +437,14 @@ function drawHistoryChart(telemetryData) {
     const borderValColor = getComputedStyle(document.body).getPropertyValue('--border-color').trim();
 
     if (historyChart) {
-        historyChart.destroy();
+        historyChart.data.labels = labels;
+        historyChart.data.datasets[0].data = temps;
+        historyChart.data.datasets[1].data = hums;
+        historyChart.options.plugins.legend.labels.color = textMainColor;
+        historyChart.options.scales.x.grid.color = borderValColor;
+        historyChart.options.scales.x.ticks.color = textMainColor;
+        historyChart.update();
+        return;
     }
     
     historyChart = new Chart(ctx, {
@@ -665,6 +681,9 @@ window.captureWebcamFrame = function() {
     captureBtn.disabled = true;
     
     canvas.toBlob(blob => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
         fetch('/detect', {
             method: 'POST',
             headers: {
@@ -672,7 +691,8 @@ window.captureWebcamFrame = function() {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            body: blob
+            body: blob,
+            signal: controller.signal
         })
         .then(response => {
             if (!response.ok) {
@@ -697,9 +717,14 @@ window.captureWebcamFrame = function() {
         })
         .catch(err => {
             console.error("Camera scan failed:", err);
-            showToast(err.message || "Failed to analyze camera frame.", true);
+            if (err.name === 'AbortError') {
+                showToast("Request timed out. Server did not respond.", true);
+            } else {
+                showToast(err.message || "Failed to analyze camera frame.", true);
+            }
         })
         .finally(() => {
+            clearTimeout(timeoutId);
             scanLine.style.display = 'none';
             vfLabel.textContent = 'LIVE \u00B7 GEMINI VISION';
             captureBtn.disabled = false;

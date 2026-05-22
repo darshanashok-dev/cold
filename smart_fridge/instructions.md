@@ -12,8 +12,8 @@ Ensure you have Python installed, then set up the required dependencies.
 # Navigate to project folder
 cd smart_fridge
 
-# Install Python requirements (including cryptography for secure ad-hoc SSL contexts)
-pip install flask google-generativeai pillow python-dotenv cryptography
+# Install Python requirements (including cryptography & pyopenssl for secure ad-hoc SSL contexts)
+pip install -r requirements.txt
 ```
 
 ---
@@ -47,6 +47,7 @@ python app.py
 - **Local Access**: Open [https://localhost:5000/](https://localhost:5000/) on your computer.
 - **Local Network Access**: Open `https://<your-laptop-ip>:5000/` from your mobile phone.
 - **PWA Installation**: Tap the browser share/menu button on your mobile device and select **Add to Home Screen** to install the dashboard as a native standalone application.
+- *Security Note*: Requests to `/detect` are rate-limited to **10 requests per minute per IP** to protect Gemini API quotas.
 
 > [!WARNING]
 > **SSL Certificate Warning**: Because the Flask server generates self-signed certificates on the fly, your browser will display a safety warning when loading the page over HTTPS on your local network. You must click **Advanced** -> **Proceed to website** to continue. Once proceeded, the browser grants the site full access to the webcam secure context.
@@ -57,16 +58,16 @@ python app.py
 
 Open [smart_fridge.ino](file:///home/da/cold/smart_fridge/smart_fridge.ino) in the Arduino IDE and make the following configuration changes:
 
-1. **Set Wi-Fi Credentials** (Lines 10-11):
+1. **Set Wi-Fi Credentials** (Lines 12-13):
    Update the SSID and password to match your router or mobile hotspot:
    ```cpp
    const char* ssid = "YOUR_HOTSPOT_NAME";
    const char* password = "YOUR_HOTSPOT_PASSWORD";
    ```
-2. **Configure Flask Server URL** (Line 15):
-   Replace `192.168.1.XXX` with your laptop's actual IPv4 address. Note that if you enabled `USE_HTTPS`, you should change the protocol to `https://`:
+2. **Configure Flask Server Base URL** (Line 17):
+   Replace `192.168.1.XXX` with your laptop's actual IPv4 address and select the protocol. The microcontroller will dynamically append `/get_setpoints` and `/api/telemetry` endpoints:
    ```cpp
-   const char* serverUrl = "https://192.168.x.x:5000/get_setpoints";
+   const char* serverBaseUrl = "https://192.168.x.x:5000";
    ```
 3. **Install Arduino Libraries**:
    Go to **Tools > Manage Libraries** in Arduino IDE and install the following libraries (including all their suggested dependencies):
@@ -74,6 +75,7 @@ Open [smart_fridge.ino](file:///home/da/cold/smart_fridge/smart_fridge.ino) in t
    - `Adafruit SSD1306` by Adafruit (Click "Install All" to automatically install `Adafruit GFX Library`)
    - `ArduinoJson` (v6 or v7) by Benoit Blanchon
 4. **Flash to board**: Connect your ESP32 via USB, select your board and port, and click **Upload**.
+   - *Reliability Options*: The code configures SSL client security if HTTPS is defined, applies a 8-second HTTP timeout to prevent task blocking, and sets a 30-second watchdog timer (WDT) to recover from crashes automatically. Warning: local SSL cert validation is skipped via `setInsecure()`; do not use on public networks.
 
 ---
 

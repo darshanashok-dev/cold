@@ -37,8 +37,9 @@ To build the physical edge-device controller, connect your sensors to the ESP32 
 Install dependencies in your terminal:
 ```bash
 cd smart_fridge
-pip install flask google-generativeai pillow python-dotenv cryptography
+pip install -r requirements.txt
 ```
+*Dependencies include `flask`, `google-generativeai`, `pillow`, `python-dotenv`, `cryptography`, and `pyopenssl` (required for ad-hoc SSL support).*
 
 ### 2. Configure Your Environment Toggles
 Copy or create a `.env` file in the `smart_fridge` directory:
@@ -58,6 +59,7 @@ python app.py
 ```
 * Access local dashboard at: `http://localhost:5000/` (or `https://localhost:5000/` if HTTPS is enabled)
 * Access API state at: `http://localhost:5000/api/state`
+* *Security Note*: Requests to `/detect` are rate-limited to **10 requests per minute per IP** to prevent API quota spamming.
 
 > [!IMPORTANT]
 > **Webcam Secure Contexts**: Modern browsers block webcam streaming via `getUserMedia` on plain HTTP unless the host is `127.0.0.1` or `localhost`. To stream camera frames from a physical phone on the same network, you **must** configure `USE_HTTPS=true` in your `.env` file, connect to `https://<your-laptop-ip>:5000/`, and bypass the self-signed certificate warning in your phone's browser.
@@ -73,6 +75,7 @@ python app.py
    * **`ArduinoJson`** (v6 or v7) by Benoit Blanchon.
 3. Open `smart_fridge.ino` in Arduino IDE.
 4. Update configuration details:
-   * **WiFi SSID & Password** (Lines 10-11)
-   * **Flask Server Target IP** (Line 15) using your computer's local IP address.
+   * **WiFi SSID & Password** (Lines 12-13).
+   * **Flask Server Base URL** (Line 17): Define `serverBaseUrl` using your computer's local IP address and protocol (e.g. `const char* serverBaseUrl = "https://192.168.1.100:5000";` or `http://...`).
 5. Upload the code to your ESP32 board.
+   * *Reliability Notes*: The firmware automatically configures SSL connection contexts if HTTPS is detected, sets an 8-second query timeout to prevent loop stalls, and initializes a 30-second hardware watchdog timer to handle connection dropouts gracefully. Warning: SSL uses `setInsecure()` to skip cert validation on local networks; do not run this bypass on public networks.

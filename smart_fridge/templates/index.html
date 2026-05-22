@@ -49,7 +49,7 @@
                 <div class="sf-status-pill" style="gap: 6px;">
                     <i class="ti ti-refresh" style="font-size: 13px;" aria-hidden="true"></i>
                     <span id="mode-badge">
-                        {% if state.use_mock_mode or not api_key %}Mock mode{% else %}Cloud mode{% endif %}
+                        {% if state.use_mock_mode %}Mock mode{% else %}Cloud mode{% endif %}
                     </span>
                 </div>
                 <!-- Theme Toggle Button -->

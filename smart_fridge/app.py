@@ -25,6 +25,61 @@ ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
 # Path to database file
 DATABASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data.db')
 
+# Simple in-memory rate limiter to prevent spamming
+rate_limit_lock = threading.Lock()
+client_request_history = {} # IP -> list of timestamps
+
+def is_rate_limited(ip_address, limit_per_minute=10):
+    import time
+    now = time.time()
+    with rate_limit_lock:
+        if ip_address not in client_request_history:
+            client_request_history[ip_address] = []
+        timestamps = client_request_history[ip_address]
+        # Keep only timestamps in the last 60 seconds
+        timestamps = [t for t in timestamps if now - t < 60]
+        if len(timestamps) >= limit_per_minute:
+            return True
+        timestamps.append(now)
+        client_request_history[ip_address] = timestamps
+        return False
+
+# --- MOCK DIAGNOSTICS DATA ---
+MOCK_DATA_TEMPLATES = {
+    "apple": {
+        "fruit": "Apple",
+        "freshness": "Fresh",
+        "conf_range": (94.0, 99.5),
+        "decay_range": (1.0, 4.5),
+        "days_range": (10, 14),
+        "ai_reasoning": "Mock Diagnostic: Fruit displays smooth cuticle, vibrant red anthocyanin coverage, and no signs of mechanical puncture or rot."
+    },
+    "banana": {
+        "fruit": "Banana",
+        "freshness": "Overripe",
+        "conf_range": (88.0, 95.0),
+        "decay_range": (12.0, 22.0),
+        "days_range": (2, 4),
+        "ai_reasoning": "Mock Diagnostic: Peel exhibits extensive necrotic spotting and softening, indicating rapid starch-to-sugar conversion."
+    },
+    "tomato": {
+        "fruit": "Tomato",
+        "freshness": "Fresh",
+        "conf_range": (91.0, 97.5),
+        "decay_range": (0.5, 2.5),
+        "days_range": (7, 10),
+        "ai_reasoning": "Mock Diagnostic: Uniform red color with firm pericarp structure. Small stem area is green and intact, indicating high freshness."
+    },
+    "orange": {
+        "fruit": "Orange",
+        "freshness": "Fresh",
+        "conf_range": (93.0, 98.0),
+        "decay_range": (1.0, 3.0),
+        "days_range": (12, 16),
+        "ai_reasoning": "Mock Diagnostic: Rind maintains firm texture and bright orange carotenoid pigmentation. Zero evidence of green mold growth."
+    }
+}
+
 # Thread lock for thread-safe access to globals
 state_lock = threading.Lock()
 
@@ -230,12 +285,22 @@ def index():
     with state_lock:
         state_to_render = current_setpoints.copy()
     state_to_render["use_mock_mode"] = use_mock_mode
-    return render_template('index.html', state=state_to_render, api_key=api_key)
+    return render_template('index.html', state=state_to_render)
 
 @app.route('/detect', methods=['POST'])
 def detect_fruit():
     global current_setpoints
     
+    # Rate limiter check (10 requests per minute per IP)
+    if is_rate_limited(request.remote_addr, limit_per_minute=10):
+        error_msg = "Rate limit exceeded. Maximum 10 scans per minute."
+        if is_ajax_request() or request.mimetype == 'application/octet-stream' or 'image' not in request.files:
+            return jsonify({"error": error_msg}), 429
+        with state_lock:
+            state_to_render = current_setpoints.copy()
+        state_to_render["use_mock_mode"] = use_mock_mode
+        return render_template('index.html', state=state_to_render, error=error_msg)
+        
     # Check if this is a raw binary POST (PWA/Mobile capture stream or application/octet-stream)
     is_raw_bytes = False
     filename_lower = ""
@@ -249,6 +314,7 @@ def detect_fruit():
                 return jsonify({"error": error_msg}), 400
             with state_lock:
                 state_to_render = current_setpoints.copy()
+            state_to_render["use_mock_mode"] = use_mock_mode
             return render_template('index.html', state=state_to_render, error=error_msg)
         
         # Validate raw data size (max 5MB)
@@ -258,6 +324,7 @@ def detect_fruit():
                 return jsonify({"error": error_msg}), 400
             with state_lock:
                 state_to_render = current_setpoints.copy()
+            state_to_render["use_mock_mode"] = use_mock_mode
             return render_template('index.html', state=state_to_render, error=error_msg)
             
         try:
@@ -269,6 +336,7 @@ def detect_fruit():
                 return jsonify({"error": error_msg}), 400
             with state_lock:
                 state_to_render = current_setpoints.copy()
+            state_to_render["use_mock_mode"] = use_mock_mode
             return render_template('index.html', state=state_to_render, error=error_msg)
     else:
         file = request.files['image']
@@ -278,6 +346,7 @@ def detect_fruit():
                 return jsonify({"error": error_msg}), 400
             with state_lock:
                 state_to_render = current_setpoints.copy()
+            state_to_render["use_mock_mode"] = use_mock_mode
             return render_template('index.html', state=state_to_render, error=error_msg)
 
         # Perform file validation checks
@@ -287,6 +356,7 @@ def detect_fruit():
                 return jsonify({"error": validation_error}), 400
             with state_lock:
                 state_to_render = current_setpoints.copy()
+            state_to_render["use_mock_mode"] = use_mock_mode
             return render_template('index.html', state=state_to_render, error=validation_error)
 
     try:
@@ -316,54 +386,22 @@ def detect_fruit():
         # Check if running in mock mode
         if use_mock_mode:
             import random
-            filename_lower = getattr(file, 'filename', '').lower()
-            
-            mock_database = [
-                {
-                    "fruit": "Apple",
-                    "freshness": "Fresh",
-                    "confidence": random.uniform(94.0, 99.5),
-                    "decay_index": random.uniform(1.0, 4.5),
-                    "days_remaining": random.randint(10, 14),
-                    "ai_reasoning": "Mock Diagnostic: Fruit displays smooth cuticle, vibrant red anthocyanin coverage, and no signs of mechanical puncture or rot."
-                },
-                {
-                    "fruit": "Banana",
-                    "freshness": "Overripe",
-                    "confidence": random.uniform(88.0, 95.0),
-                    "decay_index": random.uniform(12.0, 22.0),
-                    "days_remaining": random.randint(2, 4),
-                    "ai_reasoning": "Mock Diagnostic: Peel exhibits extensive necrotic spotting and softening, indicating rapid starch-to-sugar conversion."
-                },
-                {
-                    "fruit": "Tomato",
-                    "freshness": "Fresh",
-                    "confidence": random.uniform(91.0, 97.5),
-                    "decay_index": random.uniform(0.5, 2.5),
-                    "days_remaining": random.randint(7, 10),
-                    "ai_reasoning": "Mock Diagnostic: Uniform red color with firm pericarp structure. Small stem area is green and intact, indicating high freshness."
-                },
-                {
-                    "fruit": "Orange",
-                    "freshness": "Fresh",
-                    "confidence": random.uniform(93.0, 98.0),
-                    "decay_index": random.uniform(1.0, 3.0),
-                    "days_remaining": random.randint(12, 16),
-                    "ai_reasoning": "Mock Diagnostic: Rind maintains firm texture and bright orange carotenoid pigmentation. Zero evidence of green mold growth."
-                }
-            ]
-            
-            selected_mock = None
-            for mock in mock_database:
-                if mock["fruit"].lower() in filename_lower:
-                    selected_mock = mock.copy()
+            selected_template = None
+            for key, template in MOCK_DATA_TEMPLATES.items():
+                if key in filename_lower:
+                    selected_template = template
                     break
-            if not selected_mock:
-                selected_mock = random.choice(mock_database).copy()
+            if not selected_template:
+                selected_template = random.choice(list(MOCK_DATA_TEMPLATES.values()))
                 
-            selected_mock["confidence"] = round(selected_mock["confidence"], 1)
-            selected_mock["decay_index"] = round(selected_mock["decay_index"], 1)
-            data = selected_mock
+            data = {
+                "fruit": selected_template["fruit"],
+                "freshness": selected_template["freshness"],
+                "confidence": round(random.uniform(*selected_template["conf_range"]), 1),
+                "decay_index": round(random.uniform(*selected_template["decay_range"]), 1),
+                "days_remaining": random.randint(*selected_template["days_range"]),
+                "ai_reasoning": selected_template["ai_reasoning"]
+            }
         else:
             # Call Gemini model
             response = model.generate_content([prompt, img])
@@ -434,7 +472,7 @@ def detect_fruit():
         with state_lock:
             state_to_render = current_setpoints.copy()
         state_to_render["use_mock_mode"] = use_mock_mode
-        return render_template('index.html', state=state_to_render, api_key=api_key, success=True)
+        return render_template('index.html', state=state_to_render, success=True)
         
     except Exception as e:
         error_str = str(e)
@@ -503,7 +541,7 @@ def post_telemetry():
 def get_history():
     """Fetches telemetry history logs for dashboard charting."""
     try:
-        limit = extract_int(request.args.get('limit'), 30)
+        limit = min(extract_int(request.args.get('limit'), 30), 500)
         with sqlite3.connect(DATABASE_PATH) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()

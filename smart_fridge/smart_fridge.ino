@@ -13,8 +13,8 @@ const char* ssid = "YOUR_HOTSPOT_NAME";
 const char* password = "YOUR_HOTSPOT_PASSWORD";
 
 // REPLACE with your laptop's actual IP and protocol (supports http and https)
-// Example: "https://192.168.1.100:5000/get_setpoints"
-const char* serverUrl = "http://192.168.1.XXX:5000/get_setpoints";
+// Example: "https://192.168.1.100:5000"
+const char* serverBaseUrl = "http://192.168.1.XXX:5000";
 
 // --- PIN DEFINITIONS ---
 #define DHT_PIN 4        // DHT22 Data Pin
@@ -150,25 +150,27 @@ void loop() {
       WiFiClientSecure *secureClient = nullptr;
       
       // Determine connection method (HTTPS vs HTTP)
-      bool isHttps = String(serverUrl).startsWith("https://");
+      bool isHttps = String(serverBaseUrl).startsWith("https://");
       if (isHttps) {
         secureClient = new WiFiClientSecure;
         if (secureClient) {
-          secureClient->setInsecure(); // Skip certificate verification for adhoc/self-signed cert
+          secureClient->setInsecure(); // Skip certificate verification for adhoc/self-signed cert (Warning: MITM vulnerable, only use for local networks)
         }
       }
       
       // --- GET: Fetch setpoints ---
       HTTPClient http;
       bool getSuccess = false;
+      String getSetpointsUrl = String(serverBaseUrl) + "/get_setpoints";
       
       if (isHttps && secureClient) {
-        getSuccess = http.begin(*secureClient, serverUrl);
+        getSuccess = http.begin(*secureClient, getSetpointsUrl);
       } else {
-        getSuccess = http.begin(serverUrl);
+        getSuccess = http.begin(getSetpointsUrl);
       }
       
       if (getSuccess) {
+        http.setTimeout(8000); // 8 second timeout to avoid WDT triggering
         int httpCode = http.GET();
         if (httpCode == 200) {
           String payload = http.getString();
@@ -199,8 +201,7 @@ void loop() {
       }
       
       // --- POST: Send telemetry back to server ---
-      String telemetryUrl = String(serverUrl);
-      telemetryUrl.replace("/get_setpoints", "/api/telemetry");
+      String telemetryUrl = String(serverBaseUrl) + "/api/telemetry";
       
       HTTPClient httpPost;
       bool postSuccess = false;
@@ -212,6 +213,7 @@ void loop() {
       }
       
       if (postSuccess) {
+        httpPost.setTimeout(8000); // 8 second timeout to avoid WDT triggering
         httpPost.addHeader("Content-Type", "application/json");
         
         #if ARDUINOJSON_VERSION_MAJOR >= 7
