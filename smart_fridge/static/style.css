@@ -38,6 +38,12 @@ body.light-mode {
     /* Light mode redesign mappings */
     --color-background-secondary: rgba(15, 23, 42, 0.02);
     --color-border-secondary: rgba(15, 23, 42, 0.06);
+
+    /* Inherited variable overrides to force evaluation on body.light-mode */
+    --color-text-primary: var(--text-main);
+    --color-text-secondary: var(--text-muted);
+    --color-border-tertiary: var(--border-color);
+    --color-background-primary: var(--panel-bg);
 }
 
 * {
@@ -617,6 +623,10 @@ body.light-mode .sf-metric {
     justify-content: center;
     align-items: center;
     gap: 24px;
+}
+
+body.light-mode .loader-overlay {
+    background: rgba(241, 245, 249, 0.85);
 }
 
 .spinner {

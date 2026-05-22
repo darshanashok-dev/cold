@@ -200,7 +200,7 @@ if not api_key or "YOUR_GEMINI" in api_key or "INSERT_API_KEY" in api_key or api
 else:
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-3.5-flash')
         print("Gemini API configured successfully from environment.")
     except Exception as e:
         print(f"Error configuring Gemini API: {e}. Falling back to MOCK Mode.")
@@ -403,10 +403,16 @@ def detect_fruit():
                 "ai_reasoning": selected_template["ai_reasoning"]
             }
         else:
-            # Call Gemini model
-            response = model.generate_content([prompt, img])
-            # Robust parsing
-            data = clean_and_parse_json(response.text)
+            # Call Gemini model with 12s timeout and JSON output configuration
+            response = model.generate_content(
+                [prompt, img],
+                generation_config={"response_mime_type": "application/json"},
+                request_options={"timeout": 12}
+            )
+            try:
+                data = json.loads(response.text)
+            except Exception:
+                data = clean_and_parse_json(response.text)
         
         fruit = data.get('fruit', 'Unknown')
         fresh = data.get('freshness', 'Unknown')
